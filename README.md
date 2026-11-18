@@ -85,5 +85,5 @@ tests/             testes de cada parte
 - [x] Níveis de dificuldade a partir de checkpoints do treino
 - [x] Modo visual com pygame (teclado e mouse) e menu inicial
 - [x] Chat do produtor pelo Telegram (e pelo terminal)
-- [ ] `decisoes.md` e `relato-ia.md`
+- [x] [`decisoes.md`](decisoes.md) e [`relato-ia.md`](relato-ia.md)
 - [ ] Extra: controle da raquete pela mão (webcam)
