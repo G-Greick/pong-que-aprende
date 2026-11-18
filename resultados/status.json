@@ -1,0 +1,16 @@
+{
+  "situacao": "concluido",
+  "inicio": "2026-11-17T22:25:33",
+  "pontos_total": 30000,
+  "adversario": "segue",
+  "estados": 440,
+  "tamanho_cerebro_bytes": 5280,
+  "pontos_treinados": 30000,
+  "epsilon": 0.05,
+  "pct_pontos_treino": 46.1,
+  "pct_pontos_avaliacao": 43.2,
+  "rebatidas_por_ponto": 17.21,
+  "passos_por_ponto": 2579,
+  "segundos": 281.2,
+  "atualizado": "2026-11-17T22:30:14"
+}
