@@ -5,6 +5,9 @@ __pycache__/
 *.tmp
 .env
 
+# modelo de detecção de mão do MediaPipe (7,8 MB), baixado no primeiro uso
+modelos/hand_landmarker.task
+
 # placar das partidas jogadas nesta máquina (gerado pelo modo visual)
 resultados/partida.json
 resultados/partidas.csv

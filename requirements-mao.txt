@@ -1,0 +1,3 @@
+# extra opcional: controle da raquete pela mão (webcam)
+opencv-python
+mediapipe

@@ -16,11 +16,12 @@ from pong.arquivos import ler_csv
 from pong.bots import BotPreditor, BotSegue
 from pong.estilo import COR, DESTAQUE, FUNDO, LINHA, TEXTO, TEXTO_FRACO
 from pong.jogo import DIR, ESQ, Config, Pong
+from pong.mao import falta_instalar
 
 NOME_BOT = {"segue": "segue", "preditor": "preditor", "aleatorio": "aleatório"}
 OPONENTES = {**{n: f"IA · {NOME_NIVEL[n]}" for n in NIVEIS}, **{b: f"bot {NOME_BOT[b]}" for b in NOME_BOT}}
 MODOS = {"jogar": "jogar", "assistir": "assistir"}
-CONTROLES = {"teclado": "teclado", "mouse": "mouse"}
+CONTROLES = {"teclado": "teclado", "mouse": "mouse", "mao": "mão (webcam)"}
 PONTOS = (3, 5, 11, 21)
 
 DESCRICAO = {
@@ -28,6 +29,7 @@ DESCRICAO = {
     "assistir": "o bot segue (azul) contra o adversário escolhido, sem humano",
     "teclado": "W/S ou setas para subir e descer",
     "mouse": "a raquete vai atrás do mouse, na mesma velocidade da IA",
+    "mao": "a raquete segue a altura da sua mão na webcam, na mesma velocidade da IA",
     "segue": "bot escrito à mão: vai atrás da bola (é com ele que a IA treinou)",
     "preditor": "bot escrito à mão: calcula onde a bola vai chegar e devolve com ângulo",
     "aleatorio": "bot escrito à mão: aperta botões ao acaso",
@@ -88,6 +90,8 @@ def descrever(escolha: Escolha, chave: str | None, avaliacao: dict, pasta_modelo
         return DESCRICAO[escolha.oponente]
     if chave == "pontos":
         return f"a partida acaba quando alguém fizer {escolha.pontos} pontos"
+    if chave == "controle" and escolha.controle == "mao" and falta_instalar():
+        return falta_instalar()
     return DESCRICAO[getattr(escolha, chave)]
 
 
@@ -156,6 +160,9 @@ class Menu:
     def _jogar(self) -> Escolha | bool:
         if falta_modelo(self.escolha, self.pasta_modelos):
             self.aviso = "esse nível ainda não foi treinado"
+            return False
+        if self.escolha.modo == "jogar" and self.escolha.controle == "mao" and falta_instalar():
+            self.aviso = f"controle pela mão: {falta_instalar()}"
             return False
         return self.escolha
 

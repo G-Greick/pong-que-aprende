@@ -20,7 +20,6 @@ treina é exatamente o jogo em que o humano joga.
 - **Treinar contra si mesma (self-play):** treinei só contra um bot escrito à mão.
 - **Rede neural:** não usei.
 - **Partida online e dificuldade que se ajusta durante o jogo:** ficaram de fora.
-- **Controle pela mão (webcam):** era um extra opcional e não entrou nesta entrega.
 
 ## 2. Caminhos que considerei e o que escolhi
 
@@ -36,6 +35,7 @@ treina é exatamente o jogo em que o humano joga.
 | Níveis | Limitar a velocidade da IA ou salvar o treino em momentos diferentes | **Checkpoints** com 0, 2.000, 10.000 e 30.000 pontos de treino: sem treino, fácil, médio e difícil. A dificuldade vem só do quanto ela treinou. |
 | Física | Física pronta ou própria | **Própria e determinística** (mesma semente, mesma partida). A colisão olha a trajetória da bola no passo, e não só a posição final, para a bola rápida não atravessar a raquete. |
 | Controle humano | Mouse "teletransporta" a raquete ou segue as mesmas regras | **Mesmas regras da IA:** com o mouse, a raquete vai atrás do cursor com as mesmas três ações e a mesma velocidade, então ninguém tem vantagem. |
+| Controle pela mão (extra) | Detectar cor de pele com OpenCV ou usar um detector de mão pronto | **MediaPipe (detector de mão pronto) numa thread separada.** A cor de pele falha com luz ruim. A altura da mão vira um alvo, como no mouse, e o saque espera a mão aparecer. Os pacotes ficam num arquivo de requisitos separado, porque são pesados e opcionais. |
 | Chat | Modelo de linguagem ou palavras-chave | **Palavras-chave** sobre os arquivos de resultado: roda offline, não tem custo e nunca inventa número. O bot do Telegram usa a API HTTP direto, com o token só em variável de ambiente. O mesmo assistente roda no terminal (`python -m pong.chat`) se o Telegram não estiver disponível. |
 
 ## 3. Como medi se funciona
@@ -84,5 +84,5 @@ ponto**, que mostram a defesa. Se um ponto passa de 3.000 passos sem ninguém er
 - **Sem medição com pessoas:** não medi o desempenho contra humanos de forma sistemática. O jogo
   registra o placar de cada partida e daria para juntar esses dados.
 - **Chat limitado:** ele entende só os assuntos previstos. Fora deles, mostra o que pode responder.
-- **Controle pela mão (webcam com MediaPipe):** ficou de fora. Seria mais um tipo de jogador com
-  as mesmas três ações, como o mouse.
+- **Controle pela mão:** depende de luz razoável e de internet no primeiro uso, para baixar o
+  modelo. Na apresentação, o teclado continua sendo o plano B.

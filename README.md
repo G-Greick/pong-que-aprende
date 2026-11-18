@@ -18,12 +18,24 @@ assistir), o **adversário** (IA sem treino, fácil, médio, difícil ou um dos 
 (teclado ou mouse) e os **pontos** da partida. Você é a raquete azul (esquerda): **W/S** ou **setas**.
 P pausa, R recomeça, F11 tela cheia, ESC volta ao menu.
 
+**Controle pela mão (extra opcional):** a raquete segue a altura da sua mão na webcam.
+
+```powershell
+pip install -r requirements-mao.txt     # OpenCV + MediaPipe
+python -m pong.jogar --controle mao     # ou escolha "mão (webcam)" no menu
+```
+
+Na primeira vez o jogo baixa o modelo de detecção de mão (7,8 MB) para `modelos/`, então
+precisa de internet. Mão aberta de frente para a câmera; a faixa do meio da imagem (marcada
+na prévia) cobre a quadra toda. A bola só sai quando a mão aparece.
+
 Para pular o menu:
 
 ```powershell
 python -m pong.jogar --nivel facil      # sem-treino, facil, medio, dificil (padrão)
 python -m pong.jogar --oponente segue   # contra um bot: segue, preditor, aleatorio
 python -m pong.jogar --controle mouse   # raquete vai atrás do mouse, na mesma velocidade da IA
+python -m pong.jogar --controle mao     # raquete segue a mão na webcam
 python -m pong.jogar --assistir         # bot "segue" contra a IA, sem humano
 ```
 
@@ -67,6 +79,7 @@ pong/
   relatorio.py     avalia os níveis contra os bots e desenha os gráficos
   jogar.py         modo visual (pygame): humano contra IA ou bot
   menu.py          menu inicial: modo, adversário, controle e pontos
+  mao.py           controle pela mão: webcam + MediaPipe numa thread separada
   estilo.py        cores do modo visual
   partidas.py      grava o placar das partidas para o chat
   chat.py          assistente que responde ao produtor (também roda no terminal)
@@ -86,4 +99,4 @@ tests/             testes de cada parte
 - [x] Modo visual com pygame (teclado e mouse) e menu inicial
 - [x] Chat do produtor pelo Telegram (e pelo terminal)
 - [x] [`decisoes.md`](decisoes.md) e [`relato-ia.md`](relato-ia.md)
-- [ ] Extra: controle da raquete pela mão (webcam)
+- [x] Extra: controle da raquete pela mão (webcam)

@@ -30,6 +30,7 @@ from pong.agente import NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteQ, caminho_nive
 from pong.bots import BOTS, BotSegue, criar_bot, mover_para
 from pong.estilo import COR, FUNDO, LINHA, TEXTO, TEXTO_FRACO
 from pong.jogo import DESCE, DIR, ESQ, PARADO, SOBE, Config, Pong
+from pong.mao import MINIATURA, HumanoMao, RastreadorMao, falta_instalar
 from pong.menu import NOME_BOT, Escolha, Menu
 from pong.partidas import PASTA as PASTA_RESULTADOS
 from pong.partidas import RegistroPartida
@@ -164,7 +165,10 @@ class Tela:
         self.superficie.blit(self.quadro, deslocamento)
         pygame.display.flip()
 
-    def desenhar(self, jogo: Pong, efeitos: Efeitos, nomes: dict, detalhe: str, aviso: str | None, rodape: str) -> None:
+    def desenhar(
+        self, jogo: Pong, efeitos: Efeitos, nomes: dict, detalhe: str, aviso: str | None, rodape: str,
+        camera: tuple | None = None,
+    ) -> None:
         c, q = self.cfg, self.quadro
         q.fill(FUNDO)
         for y in range(0, c.altura - 40, 30):
@@ -194,6 +198,8 @@ class Tela:
         pygame.draw.rect(q, TEXTO, (jogo.bola_x - b / 2, jogo.bola_y - b / 2, b, b))
 
         self.texto(self.fonte_pequena, rodape, TEXTO_FRACO, (c.largura / 2, c.altura - 16))
+        if camera:
+            self._camera(*camera)
         if aviso:
             veu = pygame.Surface((c.largura, c.altura), pygame.SRCALPHA)
             veu.fill((0, 0, 0, 150))
@@ -203,6 +209,19 @@ class Tela:
                 self.texto(fonte, linha, TEXTO, (c.largura / 2, c.altura / 2 - 30 + i * 60))
         self.mostrar(efeitos.deslocamento())
 
+    def _camera(self, miniatura, situacao: str | None) -> None:
+        """Prévia da webcam no rodapé, no meio (onde as raquetes não passam)."""
+        c = self.cfg
+        caixa = pygame.Rect(0, 0, *MINIATURA)
+        caixa.midbottom = (c.largura // 2, c.altura - 32)
+        if miniatura is not None:
+            imagem = pygame.image.frombuffer(miniatura.tobytes(), MINIATURA, "RGB")
+            imagem.set_alpha(190)
+            self.quadro.blit(imagem, caixa)
+        pygame.draw.rect(self.quadro, LINHA, caixa, width=1)
+        if situacao:
+            self.texto(self.fonte_pequena, situacao, TEXTO, (caixa.centerx, caixa.top - 12))
+
 
 # --- partida e laço principal ------------------------------------------------------
 
@@ -211,6 +230,8 @@ def montar_jogadores(escolha: Escolha):
     direita, nome_dir, detalhe = criar_oponente(escolha.oponente)
     if escolha.modo == "assistir":
         esquerda, nome_esq = BotSegue(), "bot segue"
+    elif escolha.controle == "mao":
+        esquerda, nome_esq = HumanoMao(RastreadorMao().iniciar()), "você"
     elif escolha.controle == "mouse":
         esquerda, nome_esq = HumanoMouse(), "você"
     else:
@@ -221,14 +242,24 @@ def montar_jogadores(escolha: Escolha):
 def jogar_partida(tela: Tela, escolha: Escolha, com_menu: bool, max_quadros: int | None = None) -> str:
     """Joga até o jogador sair. Devolve "menu" (ESC) ou "sair" (fechou a janela)."""
     esquerda, direita, nomes, detalhe = montar_jogadores(escolha)
+    rastreador = getattr(esquerda, "rastreador", None)  # só existe no controle pela mão
+    try:
+        return _partida(tela, escolha, com_menu, max_quadros, esquerda, direita, nomes, detalhe, rastreador)
+    finally:
+        if rastreador:
+            rastreador.parar()  # desliga a webcam
+
+
+def _partida(tela, escolha, com_menu, max_quadros, esquerda, direita, nomes, detalhe, rastreador) -> str:
     jogo = Pong(Config(pontos_para_vencer=escolha.pontos))
     efeitos = Efeitos()
     relogio = pygame.time.Clock()
     espera, pausado, quadros = ESPERA_SAQUE, False, 0
     esc = "ESC menu" if com_menu else "ESC sai"
-    rodape = f"W/S ou setas · P pausa · R recomeça · F11 tela cheia · {esc}"
-    if escolha.modo == "jogar" and escolha.controle == "mouse":
-        rodape = rodape.replace("W/S ou setas", "mouse")
+    controle = "W/S ou setas"
+    if escolha.modo == "jogar" and escolha.controle != "teclado":
+        controle = {"mouse": "mouse", "mao": "mão na webcam"}[escolha.controle]
+    rodape = f"{controle} · P pausa · R recomeça · F11 tela cheia · {esc}"
 
     registro = RegistroPartida(nomes, PASTA_RESULTADOS)  # placar para o chat consultar
     registro.inicio(jogo)
@@ -250,9 +281,11 @@ def jogar_partida(tela: Tela, escolha: Escolha, com_menu: bool, max_quadros: int
                 elif e.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
 
-        if not pausado and not jogo.terminou:
+        sem_mao = rastreador is not None and rastreador.y is None
+        if not pausado and not jogo.terminou and not (rastreador and rastreador.erro):
             if espera:
-                espera -= 1
+                if not (sem_mao and espera == 1):  # o saque espera a mão aparecer
+                    espera -= 1
             else:
                 vy_antes = jogo.bola_vy
                 evento = jogo.step(esquerda.agir(jogo, ESQ), direita.agir(jogo, DIR))
@@ -268,9 +301,14 @@ def jogar_partida(tela: Tela, escolha: Escolha, com_menu: bool, max_quadros: int
             humano_venceu = jogo.vencedor == ESQ and nomes[ESQ] == "você"
             vencedor = "VOCÊ VENCEU!" if humano_venceu else f"{nomes[jogo.vencedor].upper()} VENCEU"
             aviso = f"{vencedor}\nespaço joga de novo · {esc}"
+        elif rastreador and rastreador.erro:
+            aviso = f"ERRO NA CÂMERA\n{rastreador.erro}\n{esc}"
         elif pausado:
             aviso = "PAUSA\nP para continuar"
-        tela.desenhar(jogo, efeitos, nomes, detalhe, aviso, rodape)
+        camera = None
+        if rastreador:
+            camera = (rastreador.miniatura(), rastreador.situacao if sem_mao else None)
+        tela.desenhar(jogo, efeitos, nomes, detalhe, aviso, rodape, camera)
         relogio.tick(FPS)
     return "sair"
 
@@ -294,11 +332,14 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description="Jogue Pong contra a IA. Sem opções, abre o menu.")
     p.add_argument("--nivel", choices=list(NIVEIS), help="nível da IA (padrão: dificil)")
     p.add_argument("--oponente", choices=list(BOTS), help="joga contra um bot em vez da IA")
-    p.add_argument("--controle", choices=["teclado", "mouse"], default="teclado")
+    p.add_argument("--controle", choices=["teclado", "mouse", "mao"], default="teclado",
+                   help="mao = webcam (precisa de requirements-mao.txt)")
     p.add_argument("--assistir", action="store_true", help="bot segue (esquerda) contra o oponente")
     p.add_argument("--pontos", type=int, default=11, help="pontos para vencer a partida")
     argv = sys.argv[1:] if argv is None else argv
     a = p.parse_args(argv)
+    if a.controle == "mao" and falta_instalar():
+        raise SystemExit(f"Controle pela mão: {falta_instalar()}")
     escolha = Escolha(
         modo="assistir" if a.assistir else "jogar",
         oponente=a.oponente or a.nivel or "dificil",
