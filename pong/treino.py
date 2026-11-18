@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 import time
 from datetime import datetime
 from pathlib import Path
 
 from pong.agente import AgenteQ, recompensa
+from pong.arquivos import escrever_json
 from pong.avaliacao import avaliar
 from pong.bots import criar_bot
 from pong.jogo import DIR, ESQ, Config, Pong, adversario
@@ -56,13 +56,6 @@ def jogar_ponto(jogo: Pong, agente: AgenteQ, bot, epsilon: float, lado: str = DI
             jogo.sacar(jogo.rng.choice((ESQ, DIR)))
             return None, rebatidas, passos
         estado = proximo
-
-
-def _escrever_json(caminho: Path, dados: dict) -> None:
-    # grava num arquivo temporário e troca, para o chat nunca ler um JSON pela metade
-    tmp = caminho.with_suffix(".tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(caminho)
 
 
 def treinar(
@@ -125,7 +118,7 @@ def treinar(
         escritor.writerow(linha)
         arquivo_csv.flush()
         status.update(linha, atualizado=datetime.now().isoformat(timespec="seconds"))
-        _escrever_json(pasta_resultados / "status.json", status)
+        escrever_json(pasta_resultados / "status.json", status)
         mostrar(
             f"{p:>7} pontos | eps {epsilon:.2f} | avaliação: {linha['pct_pontos_avaliacao']:5.1f}% dos pontos, "
             f"{linha['rebatidas_avaliacao']:5.2f} rebatidas/ponto | {linha['segundos']:.0f}s"
@@ -154,7 +147,7 @@ def treinar(
                 ganhos = jogados = rebatidas = 0
 
     status["situacao"] = "concluido"
-    _escrever_json(pasta_resultados / "status.json", status)
+    escrever_json(pasta_resultados / "status.json", status)
     return agente
 
 

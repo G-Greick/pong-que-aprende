@@ -27,6 +27,8 @@ import pygame  # noqa: E402
 from pong.agente import NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteQ, caminho_nivel
 from pong.bots import BOTS, BotSegue, criar_bot, mover_para
 from pong.jogo import DESCE, DIR, ESQ, PARADO, SOBE, Config, Pong
+from pong.partidas import PASTA as PASTA_RESULTADOS
+from pong.partidas import RegistroPartida
 
 FPS = 60
 ESPERA_SAQUE = 40  # quadros parados antes de cada saque
@@ -223,17 +225,23 @@ def rodar(args: argparse.Namespace, max_quadros: int | None = None) -> None:
     efeitos = Efeitos()
     espera, pausado, quadros = ESPERA_SAQUE, False, 0
 
+    registro = RegistroPartida(nomes, PASTA_RESULTADOS)  # placar para o chat consultar
+    registro.inicio(jogo)
+
     while max_quadros is None or quadros < max_quadros:
         quadros += 1
         for e in pygame.event.get():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+                registro.interrompida(jogo)
                 pygame.quit()
                 return
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_p and not jogo.terminou:
                     pausado = not pausado
                 elif e.key == pygame.K_r or (e.key == pygame.K_SPACE and jogo.terminou):
+                    registro.interrompida(jogo)
                     jogo.reiniciar()
+                    registro.inicio(jogo)
                     espera, pausado = ESPERA_SAQUE, False
                 elif e.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
@@ -245,8 +253,10 @@ def rodar(args: argparse.Namespace, max_quadros: int | None = None) -> None:
                 vy_antes = jogo.bola_vy
                 evento = jogo.step(esquerda.agir(jogo, ESQ), direita.agir(jogo, DIR))
                 efeitos.registrar(jogo, evento, vy_antes)
-                if evento.ponto and not evento.fim:
-                    espera = ESPERA_SAQUE
+                if evento.ponto:
+                    registro.ponto(jogo)
+                    if not evento.fim:
+                        espera = ESPERA_SAQUE
         efeitos.avancar()
 
         aviso = None
