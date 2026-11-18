@@ -157,7 +157,7 @@ def main() -> None:
     p.add_argument("--checkpoints", type=int, nargs="*", default=[0], help="momentos (em pontos) para salvar a IA")
     p.add_argument("--bloco", type=int, default=500, help="de quantos em quantos pontos medir e registrar")
     a = p.parse_args()
-    treinar(a.pontos, a.adversario, a.seed, tuple(a.checkpoints), a.bloco)
+    treinar(a.pontos, a.adversario, a.seed, tuple(a.checkpoints), a.bloco, mostrar=lambda m: print(m, flush=True))
 
 
 if __name__ == "__main__":
