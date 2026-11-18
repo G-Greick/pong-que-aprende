@@ -13,11 +13,16 @@ pip install -r requirements.txt
 python -m pong.jogar
 ```
 
-A IA já vem treinada em `modelos/`. Você é a raquete azul (esquerda): **W/S** ou **setas**.
-P pausa, R recomeça, F11 tela cheia, ESC sai.
+A IA já vem treinada em `modelos/`. O jogo abre num menu para escolher o **modo** (jogar ou
+assistir), o **adversário** (IA sem treino, fácil, médio, difícil ou um dos bots), o **controle**
+(teclado ou mouse) e os **pontos** da partida. Você é a raquete azul (esquerda): **W/S** ou **setas**.
+P pausa, R recomeça, F11 tela cheia, ESC volta ao menu.
+
+Para pular o menu:
 
 ```powershell
 python -m pong.jogar --nivel facil      # sem-treino, facil, medio, dificil (padrão)
+python -m pong.jogar --oponente segue   # contra um bot: segue, preditor, aleatorio
 python -m pong.jogar --controle mouse   # raquete vai atrás do mouse, na mesma velocidade da IA
 python -m pong.jogar --assistir         # bot "segue" contra a IA, sem humano
 ```
@@ -61,6 +66,8 @@ pong/
   avaliacao.py     mede uma IA ou bot jogando muitos pontos contra outro
   relatorio.py     avalia os níveis contra os bots e desenha os gráficos
   jogar.py         modo visual (pygame): humano contra IA ou bot
+  menu.py          menu inicial: modo, adversário, controle e pontos
+  estilo.py        cores do modo visual
   partidas.py      grava o placar das partidas para o chat
   chat.py          assistente que responde ao produtor (também roda no terminal)
   telegram_bot.py  liga o assistente ao Telegram
@@ -76,7 +83,7 @@ tests/             testes de cada parte
 - [x] IA com Q-learning + treino rápido (~5 min)
 - [x] Gráfico de evolução e avaliação em milhares de pontos
 - [x] Níveis de dificuldade a partir de checkpoints do treino
-- [x] Modo visual com pygame (teclado e mouse)
+- [x] Modo visual com pygame (teclado e mouse) e menu inicial
 - [x] Chat do produtor pelo Telegram (e pelo terminal)
 - [ ] `decisoes.md` e `relato-ia.md`
 - [ ] Extra: controle da raquete pela mão (webcam)

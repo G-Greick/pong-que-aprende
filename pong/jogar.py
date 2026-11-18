@@ -1,12 +1,14 @@
 """Modo visual: jogue contra a IA.
 
-    python -m pong.jogar                      você (W/S ou setas) contra a IA difícil
+    python -m pong.jogar                      abre o menu (modo, adversário, controle, pontos)
+
+Ou direto, sem menu:
     python -m pong.jogar --nivel facil        níveis: sem-treino, facil, medio, dificil
     python -m pong.jogar --oponente segue     contra um bot escrito à mão
     python -m pong.jogar --controle mouse     raquete segue o mouse (com a mesma velocidade da IA)
-    python -m pong.jogar --assistir           IA contra o bot "segue", sem humano
+    python -m pong.jogar --assistir           o bot "segue" contra a IA, sem humano
 
-Teclas: P pausa, R recomeça, F11 tela cheia, ESC sai.
+Teclas: P pausa, R recomeça, F11 tela cheia, ESC volta ao menu (ou sai).
 
 A tela só desenha: quem manda é a mesma classe Pong usada no treino.
 """
@@ -26,18 +28,14 @@ import pygame  # noqa: E402
 
 from pong.agente import NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteQ, caminho_nivel
 from pong.bots import BOTS, BotSegue, criar_bot, mover_para
+from pong.estilo import COR, FUNDO, LINHA, TEXTO, TEXTO_FRACO
 from pong.jogo import DESCE, DIR, ESQ, PARADO, SOBE, Config, Pong
+from pong.menu import NOME_BOT, Escolha, Menu
 from pong.partidas import PASTA as PASTA_RESULTADOS
 from pong.partidas import RegistroPartida
 
 FPS = 60
 ESPERA_SAQUE = 40  # quadros parados antes de cada saque
-
-FUNDO = (14, 16, 32)
-LINHA = (60, 64, 100)
-TEXTO = (235, 235, 245)
-TEXTO_FRACO = (130, 134, 170)
-COR = {ESQ: (79, 209, 255), DIR: (255, 79, 139)}
 
 
 # --- jogadores ----------------------------------------------------------------
@@ -65,8 +63,7 @@ class HumanoMouse:
 
 def criar_oponente(nome: str):
     if nome in BOTS:
-        bot = criar_bot(nome)
-        return bot, f"bot {nome}", "escrito à mão"
+        return criar_bot(nome), f"bot {NOME_BOT[nome]}", "escrito à mão"
     if nome not in NIVEIS:
         raise SystemExit(f"oponente desconhecido: {nome} (níveis: {', '.join(NIVEIS)}; bots: {', '.join(BOTS)})")
     caminho = caminho_nivel(nome, PASTA_MODELOS)
@@ -150,14 +147,24 @@ class Tela:
         pygame.display.set_caption("Pong que aprende — Arcade Pixel")
         self.quadro = pygame.Surface((cfg.largura, cfg.altura))
         self.fonte_placar = pygame.font.Font(None, 96)
+        self.fonte_titulo = pygame.font.Font(None, 72)
         self.fonte = pygame.font.Font(None, 30)
         self.fonte_pequena = pygame.font.Font(None, 22)
+
+    @property
+    def fps(self) -> int:
+        return FPS
 
     def texto(self, fonte, conteudo: str, cor, centro: tuple[float, float]) -> None:
         img = fonte.render(conteudo, True, cor)
         self.quadro.blit(img, img.get_rect(center=(int(centro[0]), int(centro[1]))))
 
-    def desenhar(self, jogo: Pong, efeitos: Efeitos, nomes: dict, detalhe: str, aviso: str | None) -> None:
+    def mostrar(self, deslocamento: tuple[int, int] = (0, 0)) -> None:
+        self.superficie.fill(FUNDO)
+        self.superficie.blit(self.quadro, deslocamento)
+        pygame.display.flip()
+
+    def desenhar(self, jogo: Pong, efeitos: Efeitos, nomes: dict, detalhe: str, aviso: str | None, rodape: str) -> None:
         c, q = self.cfg, self.quadro
         q.fill(FUNDO)
         for y in range(0, c.altura - 40, 30):
@@ -186,10 +193,7 @@ class Tela:
         b = c.bola_tam
         pygame.draw.rect(q, TEXTO, (jogo.bola_x - b / 2, jogo.bola_y - b / 2, b, b))
 
-        self.texto(
-            self.fonte_pequena, "W/S ou setas · P pausa · R recomeça · F11 tela cheia · ESC sai",
-            TEXTO_FRACO, (c.largura / 2, c.altura - 16),
-        )
+        self.texto(self.fonte_pequena, rodape, TEXTO_FRACO, (c.largura / 2, c.altura - 16))
         if aviso:
             veu = pygame.Surface((c.largura, c.altura), pygame.SRCALPHA)
             veu.fill((0, 0, 0, 150))
@@ -197,33 +201,34 @@ class Tela:
             for i, linha in enumerate(aviso.split("\n")):
                 fonte = self.fonte_placar if i == 0 else self.fonte
                 self.texto(fonte, linha, TEXTO, (c.largura / 2, c.altura / 2 - 30 + i * 60))
-
-        self.superficie.fill(FUNDO)
-        self.superficie.blit(q, efeitos.deslocamento())
-        pygame.display.flip()
+        self.mostrar(efeitos.deslocamento())
 
 
-# --- laço principal -------------------------------------------------------------
+# --- partida e laço principal ------------------------------------------------------
 
 
-def rodar(args: argparse.Namespace, max_quadros: int | None = None) -> None:
-    pygame.init()
-    cfg = Config(pontos_para_vencer=args.pontos)
-    tela = Tela(cfg)
-    relogio = pygame.time.Clock()
-
-    direita, nome_dir, detalhe = criar_oponente(args.oponente or args.nivel)
-    if args.assistir:
+def montar_jogadores(escolha: Escolha):
+    direita, nome_dir, detalhe = criar_oponente(escolha.oponente)
+    if escolha.modo == "assistir":
         esquerda, nome_esq = BotSegue(), "bot segue"
-    elif args.controle == "mouse":
+    elif escolha.controle == "mouse":
         esquerda, nome_esq = HumanoMouse(), "você"
     else:
         esquerda, nome_esq = HumanoTeclado(), "você"
-    nomes = {ESQ: nome_esq, DIR: nome_dir}
+    return esquerda, direita, {ESQ: nome_esq, DIR: nome_dir}, detalhe
 
-    jogo = Pong(cfg)
+
+def jogar_partida(tela: Tela, escolha: Escolha, com_menu: bool, max_quadros: int | None = None) -> str:
+    """Joga até o jogador sair. Devolve "menu" (ESC) ou "sair" (fechou a janela)."""
+    esquerda, direita, nomes, detalhe = montar_jogadores(escolha)
+    jogo = Pong(Config(pontos_para_vencer=escolha.pontos))
     efeitos = Efeitos()
+    relogio = pygame.time.Clock()
     espera, pausado, quadros = ESPERA_SAQUE, False, 0
+    esc = "ESC menu" if com_menu else "ESC sai"
+    rodape = f"W/S ou setas · P pausa · R recomeça · F11 tela cheia · {esc}"
+    if escolha.modo == "jogar" and escolha.controle == "mouse":
+        rodape = rodape.replace("W/S ou setas", "mouse")
 
     registro = RegistroPartida(nomes, PASTA_RESULTADOS)  # placar para o chat consultar
     registro.inicio(jogo)
@@ -233,8 +238,7 @@ def rodar(args: argparse.Namespace, max_quadros: int | None = None) -> None:
         for e in pygame.event.get():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
                 registro.interrompida(jogo)
-                pygame.quit()
-                return
+                return "sair" if e.type == pygame.QUIT else "menu"
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_p and not jogo.terminou:
                     pausado = not pausado
@@ -261,24 +265,49 @@ def rodar(args: argparse.Namespace, max_quadros: int | None = None) -> None:
 
         aviso = None
         if jogo.terminou:
-            vencedor = "VOCÊ VENCEU!" if jogo.vencedor == ESQ and nome_esq == "você" else f"{nomes[jogo.vencedor].upper()} VENCEU"
-            aviso = f"{vencedor}\nespaço para jogar de novo"
+            humano_venceu = jogo.vencedor == ESQ and nomes[ESQ] == "você"
+            vencedor = "VOCÊ VENCEU!" if humano_venceu else f"{nomes[jogo.vencedor].upper()} VENCEU"
+            aviso = f"{vencedor}\nespaço joga de novo · {esc}"
         elif pausado:
             aviso = "PAUSA\nP para continuar"
-        tela.desenhar(jogo, efeitos, nomes, detalhe, aviso)
+        tela.desenhar(jogo, efeitos, nomes, detalhe, aviso, rodape)
         relogio.tick(FPS)
-    pygame.quit()
+    return "sair"
+
+
+def rodar(escolha: Escolha, com_menu: bool, max_quadros: int | None = None) -> None:
+    pygame.init()
+    tela = Tela(Config())
+    try:
+        if not com_menu:
+            jogar_partida(tela, escolha, com_menu=False, max_quadros=max_quadros)
+            return
+        while True:
+            escolha = Menu(tela, escolha, PASTA_MODELOS, PASTA_RESULTADOS).rodar(max_quadros)
+            if escolha is None or jogar_partida(tela, escolha, True, max_quadros) == "sair":
+                return
+    finally:
+        pygame.quit()
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description="Jogue Pong contra a IA.")
-    p.add_argument("--nivel", choices=list(NIVEIS), default="dificil")
+    p = argparse.ArgumentParser(description="Jogue Pong contra a IA. Sem opções, abre o menu.")
+    p.add_argument("--nivel", choices=list(NIVEIS), help="nível da IA (padrão: dificil)")
     p.add_argument("--oponente", choices=list(BOTS), help="joga contra um bot em vez da IA")
     p.add_argument("--controle", choices=["teclado", "mouse"], default="teclado")
     p.add_argument("--assistir", action="store_true", help="bot segue (esquerda) contra o oponente")
     p.add_argument("--pontos", type=int, default=11, help="pontos para vencer a partida")
-    rodar(p.parse_args(argv))
+    argv = sys.argv[1:] if argv is None else argv
+    a = p.parse_args(argv)
+    escolha = Escolha(
+        modo="assistir" if a.assistir else "jogar",
+        oponente=a.oponente or a.nivel or "dificil",
+        controle=a.controle,
+        pontos=a.pontos,
+    )
+    rodar(escolha, com_menu=not argv)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
+
