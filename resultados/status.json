@@ -1,16 +1,17 @@
 {
   "situacao": "concluido",
-  "inicio": "2026-11-17T22:25:33",
+  "inicio": "2026-11-17T23:13:11",
   "pontos_total": 30000,
   "adversario": "segue",
   "estados": 440,
   "tamanho_cerebro_bytes": 5280,
   "pontos_treinados": 30000,
   "epsilon": 0.05,
-  "pct_pontos_treino": 46.1,
-  "pct_pontos_avaliacao": 43.2,
-  "rebatidas_por_ponto": 17.21,
-  "passos_por_ponto": 2579,
-  "segundos": 281.2,
-  "atualizado": "2026-11-17T22:30:14"
+  "pct_pontos_treino": 41.0,
+  "rebatidas_treino": 17.06,
+  "pct_pontos_avaliacao": 50.4,
+  "rebatidas_avaliacao": 24.83,
+  "travados_avaliacao": 65,
+  "segundos": 324.6,
+  "atualizado": "2026-11-17T23:18:35"
 }

@@ -1,0 +1,13 @@
+nivel,pontos_treinados,bot,pct_pontos,rebatidas_por_ponto,pontos,travados
+sem-treino,0,aleatorio,48.8,0.09,1000,0
+sem-treino,0,segue,0.0,0.17,1000,0
+sem-treino,0,preditor,0.0,0.19,1000,0
+facil,2000,aleatorio,94.6,0.21,1000,0
+facil,2000,segue,13.0,6.62,1000,0
+facil,2000,preditor,0.0,3.26,1000,0
+medio,10000,aleatorio,99.8,0.23,1000,0
+medio,10000,segue,23.4,9.7,983,17
+medio,10000,preditor,0.0,8.4,999,1
+dificil,30000,aleatorio,100.0,0.2,1000,0
+dificil,30000,segue,50.9,23.9,687,313
+dificil,30000,preditor,0.1,11.48,943,57
