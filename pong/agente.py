@@ -21,6 +21,16 @@ import numpy as np
 
 from pong.jogo import ACOES, ESQ, PARADO, Evento, Pong, adversario
 
+# Os níveis de dificuldade são a mesma IA salva em momentos diferentes do treino.
+NIVEIS = {"sem-treino": 0, "facil": 2000, "medio": 10000, "dificil": 30000}
+NOME_NIVEL = {"sem-treino": "sem treino", "facil": "fácil", "medio": "médio", "dificil": "difícil"}
+PASTA_MODELOS = Path("modelos")
+
+
+def caminho_nivel(nivel: str, pasta: Path = PASTA_MODELOS) -> Path:
+    return pasta / f"ia_{NIVEIS[nivel]}.npz"
+
+
 RECOMPENSA_REBATER = 1.0
 RECOMPENSA_SOFRER = -1.0
 RECOMPENSA_MARCAR = 1.0

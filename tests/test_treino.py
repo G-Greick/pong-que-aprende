@@ -25,11 +25,22 @@ def test_treino_gera_modelos_grafico_e_status(tmp_path):
 
     with open(tmp_path / "resultados" / "treino.csv", encoding="utf-8") as f:
         linhas = list(csv.DictReader(f))
-    assert [int(l["pontos_treinados"]) for l in linhas] == [100, 200, 300]
+    assert [int(l["pontos_treinados"]) for l in linhas] == [0, 100, 200, 300]
 
     status = json.loads((tmp_path / "resultados" / "status.json").read_text(encoding="utf-8"))
     assert status["situacao"] == "concluido"
     assert status["pontos_treinados"] == 300
+
+
+def test_medir_durante_o_treino_nao_muda_o_que_a_ia_aprende(tmp_path):
+    def treinar_medindo_a_cada(bloco):
+        pasta = tmp_path / str(bloco)
+        return treinar(
+            pontos=300, bloco=bloco, pontos_avaliacao=20,
+            pasta_modelos=pasta, pasta_resultados=pasta, mostrar=lambda _: None,
+        )
+
+    assert (treinar_medindo_a_cada(50).q == treinar_medindo_a_cada(300).q).all()
 
 
 def test_ia_treinada_defende_melhor_que_sem_treino(tmp_path):

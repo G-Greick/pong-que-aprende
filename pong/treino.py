@@ -97,52 +97,61 @@ def treinar(
         "tamanho_cerebro_bytes": agente.tamanho_bytes,
     }
     colunas = [
-        "pontos_treinados", "epsilon", "pct_pontos_treino", "pct_pontos_avaliacao",
-        "rebatidas_por_ponto", "passos_por_ponto", "segundos",
+        "pontos_treinados", "epsilon", "pct_pontos_treino", "rebatidas_treino",
+        "pct_pontos_avaliacao", "rebatidas_avaliacao", "travados_avaliacao", "segundos",
     ]
     arquivo_csv = open(pasta_resultados / "treino.csv", "w", newline="", encoding="utf-8")
     escritor = csv.DictWriter(arquivo_csv, fieldnames=colunas)
     escritor.writeheader()
 
-    if 0 in checkpoints:
-        salvar_checkpoint(0)
-
+    # a medição joga com uma cópia que tem o próprio sorteio: medir mais ou
+    # menos vezes não muda o caminho do treino
+    medidor = AgenteQ(repetir=agente.repetir, seed=seed + 1)
+    medidor.q = agente.q  # mesma tabela (só leitura)
     inicio = time.perf_counter()
-    ganhos = jogados = rebatidas = passos = 0
+
+    def registrar(p: int, epsilon: float, treino: dict) -> None:
+        """Mede a IA sem exploração, sempre nos mesmos saques, e grava uma linha."""
+        aval = avaliar(medidor, criar_bot(adversario_treino, seed), pontos=pontos_avaliacao)
+        linha = {
+            "pontos_treinados": p,
+            "epsilon": round(epsilon, 3),
+            **treino,
+            "pct_pontos_avaliacao": round(aval["pct_pontos"], 1),
+            "rebatidas_avaliacao": round(aval["rebatidas_por_ponto"], 2),
+            "travados_avaliacao": aval["travados"],
+            "segundos": round(time.perf_counter() - inicio, 1),
+        }
+        escritor.writerow(linha)
+        arquivo_csv.flush()
+        status.update(linha, atualizado=datetime.now().isoformat(timespec="seconds"))
+        _escrever_json(pasta_resultados / "status.json", status)
+        mostrar(
+            f"{p:>7} pontos | eps {epsilon:.2f} | avaliação: {linha['pct_pontos_avaliacao']:5.1f}% dos pontos, "
+            f"{linha['rebatidas_avaliacao']:5.2f} rebatidas/ponto | {linha['segundos']:.0f}s"
+        )
+
     with arquivo_csv:
+        if 0 in checkpoints:
+            salvar_checkpoint(0)
+        registrar(0, 1.0, {"pct_pontos_treino": "", "rebatidas_treino": ""})
+
+        ganhos = jogados = rebatidas = 0
         for p in range(1, pontos + 1):
             epsilon = epsilon_no(p, pontos)
-            marcou, reb, n = jogar_ponto(jogo, agente, bot, epsilon)
+            marcou, reb, _ = jogar_ponto(jogo, agente, bot, epsilon)
             jogados += marcou is not None
             ganhos += marcou == DIR
             rebatidas += reb
-            passos += n
 
             if p in checkpoints:
                 salvar_checkpoint(p)
-            if p % bloco and p != pontos:
-                continue
-
-            # fim de bloco: mede a IA sem exploração, sempre nos mesmos saques
-            aval = avaliar(agente, criar_bot(adversario_treino, seed), pontos=pontos_avaliacao)
-            linha = {
-                "pontos_treinados": p,
-                "epsilon": round(epsilon, 3),
-                "pct_pontos_treino": round(100 * ganhos / max(jogados, 1), 1),
-                "pct_pontos_avaliacao": round(aval["pct_pontos"], 1),
-                "rebatidas_por_ponto": round(rebatidas / max(jogados, 1), 2),
-                "passos_por_ponto": round(passos / max(jogados, 1)),
-                "segundos": round(time.perf_counter() - inicio, 1),
-            }
-            escritor.writerow(linha)
-            arquivo_csv.flush()
-            status.update(linha, atualizado=datetime.now().isoformat(timespec="seconds"))
-            _escrever_json(pasta_resultados / "status.json", status)
-            mostrar(
-                f"{p:>7} pontos | eps {linha['epsilon']:.2f} | avaliação {linha['pct_pontos_avaliacao']:5.1f}% "
-                f"| {linha['rebatidas_por_ponto']:.2f} rebatidas/ponto | {linha['segundos']:.0f}s"
-            )
-            ganhos = jogados = rebatidas = passos = 0
+            if p % bloco == 0 or p == pontos:
+                registrar(p, epsilon, {
+                    "pct_pontos_treino": round(100 * ganhos / max(jogados, 1), 1),
+                    "rebatidas_treino": round(rebatidas / max(jogados, 1), 2),
+                })
+                ganhos = jogados = rebatidas = 0
 
     status["situacao"] = "concluido"
     _escrever_json(pasta_resultados / "status.json", status)

@@ -18,20 +18,16 @@ import os
 import random
 import sys
 from collections import deque
-from pathlib import Path
 
 import numpy as np
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import pygame  # noqa: E402
 
-from pong.agente import AgenteQ
+from pong.agente import NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteQ, caminho_nivel
 from pong.bots import BOTS, BotSegue, criar_bot, mover_para
 from pong.jogo import DESCE, DIR, ESQ, PARADO, SOBE, Config, Pong
 
-NIVEIS = {"sem-treino": 0, "facil": 2000, "medio": 10000, "dificil": 30000}
-NOME_NIVEL = {"sem-treino": "sem treino", "facil": "fácil", "medio": "médio", "dificil": "difícil"}
-PASTA_MODELOS = Path("modelos")
 FPS = 60
 ESPERA_SAQUE = 40  # quadros parados antes de cada saque
 
@@ -71,7 +67,7 @@ def criar_oponente(nome: str):
         return bot, f"bot {nome}", "escrito à mão"
     if nome not in NIVEIS:
         raise SystemExit(f"oponente desconhecido: {nome} (níveis: {', '.join(NIVEIS)}; bots: {', '.join(BOTS)})")
-    caminho = PASTA_MODELOS / f"ia_{NIVEIS[nome]}.npz"
+    caminho = caminho_nivel(nome, PASTA_MODELOS)
     if not caminho.exists():
         raise SystemExit(f"modelo {caminho} não existe; treine antes com: python -m pong.treino")
     ia = AgenteQ.carregar(caminho)
