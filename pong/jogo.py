@@ -65,7 +65,7 @@ class Pong:
         self.raquete = {ESQ: meio, DIR: meio}
         self.vencedor: str | None = None
         self.passos = 0
-        self._sacar(self.rng.choice((ESQ, DIR)))
+        self.sacar(self.rng.choice((ESQ, DIR)))
 
     @property
     def terminou(self) -> bool:
@@ -107,7 +107,7 @@ class Pong:
                 self.vencedor = marcou
                 evento.fim = True
             else:
-                self._sacar(adversario(marcou))
+                self.sacar(adversario(marcou))
 
         self.passos += 1
         return evento
@@ -119,7 +119,7 @@ class Pong:
         y = self.raquete[lado] + _SENTIDO_ACAO[acao] * self.cfg.raquete_vel
         self.raquete[lado] = min(max(y, meia), self.cfg.altura - meia)
 
-    def _sacar(self, para: str) -> None:
+    def sacar(self, para: str) -> None:
         """Bola volta ao centro e sai em direção a `para`."""
         c = self.cfg
         self.bola_x = c.largura / 2
