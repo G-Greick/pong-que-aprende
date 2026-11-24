@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python -m pong.jogar
 ```
 
-A IA já vem treinada em `modelos/`. O jogo abre num menu para escolher o **modo** (jogar ou
+Testado do zero (clone + venv novo) no Windows 11 com Python 3.10 e 3.13. A IA já vem treinada em `modelos/`. O jogo abre num menu para escolher o **modo** (jogar ou
 assistir), o **adversário** (IA sem treino, fácil, médio, difícil ou um dos bots), o **controle**
 (teclado ou mouse) e os **pontos** da partida. Você é a raquete azul (esquerda): **W/S** ou **setas**.
 P pausa, R recomeça, F11 tela cheia, ESC volta ao menu.
