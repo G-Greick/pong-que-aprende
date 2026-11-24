@@ -7,6 +7,7 @@ Ou direto, sem menu:
     python -m pong.jogar --oponente segue     contra um bot escrito à mão
     python -m pong.jogar --controle mouse     raquete segue o mouse (com a mesma velocidade da IA)
     python -m pong.jogar --assistir           o bot "segue" contra a IA, sem humano
+    python -m pong.jogar --aprender           a IA continua aprendendo enquanto joga
 
 Teclas: P pausa, R recomeça, F11 tela cheia, ESC volta ao menu (ou sai).
 
@@ -26,7 +27,9 @@ import numpy as np
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import pygame  # noqa: E402
 
-from pong.agente import NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteQ, caminho_nivel
+from pong.agente import (
+    NIVEIS, NOME_NIVEL, PASTA_MODELOS, AgenteAprendendo, AgenteQ, caminho_jogando, caminho_nivel,
+)
 from pong.bots import BOTS, BotSegue, criar_bot, mover_para
 from pong.estilo import COR, FUNDO, LINHA, TEXTO, TEXTO_FRACO
 from pong.jogo import DESCE, DIR, ESQ, PARADO, SOBE, Config, Pong
@@ -62,7 +65,20 @@ class HumanoMouse:
         return mover_para(jogo.raquete[lado], pygame.mouse.get_pos()[1], jogo.cfg.raquete_vel / 2)
 
 
-def criar_oponente(nome: str):
+def _n(numero: int) -> str:
+    return f"{numero:,}".replace(",", ".")
+
+
+def detalhe_ia(ia) -> str:
+    """Linha embaixo do nome da IA: quanto ela treinou e o tamanho do cérebro."""
+    texto = f"{_n(ia.meta.get('pontos_treinados', 0))} pontos de treino"
+    if isinstance(ia, AgenteAprendendo):
+        texto += f" + {_n(ia.pontos_jogando)} jogando"
+    kb = f"{ia.tamanho_bytes / 1024:.1f}".replace(".", ",")
+    return f"{texto} · {kb} KB"
+
+
+def criar_oponente(nome: str, aprender: bool = False):
     if nome in BOTS:
         return criar_bot(nome), f"bot {NOME_BOT[nome]}", "escrito à mão"
     if nome not in NIVEIS:
@@ -70,11 +86,15 @@ def criar_oponente(nome: str):
     caminho = caminho_nivel(nome, PASTA_MODELOS)
     if not caminho.exists():
         raise SystemExit(f"modelo {caminho} não existe; treine antes com: python -m pong.treino")
+    nome_ia = f"IA · {NOME_NIVEL[nome]}"
+    if aprender:
+        # continua de onde a IA parou nas partidas anteriores; na primeira vez, parte do nível
+        jogando = caminho_jogando(nome, PASTA_MODELOS)
+        ia = AgenteAprendendo(AgenteQ.carregar(jogando if jogando.exists() else caminho), jogando)
+        return ia, f"{nome_ia} · aprendendo", detalhe_ia(ia)
     ia = AgenteQ.carregar(caminho)
-    treino = ia.meta.get("pontos_treinados", NIVEIS[nome])
-    pontos = f"{treino:,}".replace(",", ".")
-    kb = f"{ia.tamanho_bytes / 1024:.1f}".replace(".", ",")
-    return ia, f"IA · {NOME_NIVEL[nome]}", f"{pontos} pontos de treino · {kb} KB"
+    ia.meta.setdefault("pontos_treinados", NIVEIS[nome])
+    return ia, nome_ia, detalhe_ia(ia)
 
 
 # --- efeitos ------------------------------------------------------------------
@@ -227,7 +247,7 @@ class Tela:
 
 
 def montar_jogadores(escolha: Escolha):
-    direita, nome_dir, detalhe = criar_oponente(escolha.oponente)
+    direita, nome_dir, detalhe = criar_oponente(escolha.oponente, escolha.aprender)
     if escolha.modo == "assistir":
         esquerda, nome_esq = BotSegue(), "bot segue"
     elif escolha.controle == "mao":
@@ -255,7 +275,8 @@ def _partida(tela, escolha, com_menu, max_quadros, esquerda, direita, nomes, det
     efeitos = Efeitos()
     relogio = pygame.time.Clock()
     espera, pausado, quadros = ESPERA_SAQUE, False, 0
-    esc = "ESC menu" if com_menu else "ESC sai"
+    aprendendo = isinstance(direita, AgenteAprendendo)
+    esc ="ESC menu" if com_menu else "ESC sai"
     controle = "W/S ou setas"
     if escolha.modo == "jogar" and escolha.controle != "teclado":
         controle = {"mouse": "mouse", "mao": "mão na webcam"}[escolha.controle]
@@ -290,8 +311,12 @@ def _partida(tela, escolha, com_menu, max_quadros, esquerda, direita, nomes, det
                 vy_antes = jogo.bola_vy
                 evento = jogo.step(esquerda.agir(jogo, ESQ), direita.agir(jogo, DIR))
                 efeitos.registrar(jogo, evento, vy_antes)
+                if aprendendo:
+                    direita.observar(evento)  # a IA aprende com o que acabou de acontecer
                 if evento.ponto:
                     registro.ponto(jogo)
+                    if aprendendo:
+                        detalhe = detalhe_ia(direita)
                     if not evento.fim:
                         espera = ESPERA_SAQUE
         efeitos.avancar()
@@ -336,6 +361,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="mao = webcam (precisa de requirements-mao.txt)")
     p.add_argument("--assistir", action="store_true", help="bot segue (esquerda) contra o oponente")
     p.add_argument("--pontos", type=int, default=11, help="pontos para vencer a partida")
+    p.add_argument("--aprender", action="store_true",
+                   help="a IA continua aprendendo durante a partida (salva em modelos/jogando/)")
     argv = sys.argv[1:] if argv is None else argv
     a = p.parse_args(argv)
     if a.controle == "mao" and falta_instalar():
@@ -345,7 +372,10 @@ def main(argv: list[str] | None = None) -> None:
         oponente=a.oponente or a.nivel or "dificil",
         controle=a.controle,
         pontos=a.pontos,
+        aprender=a.aprender,
     )
+    if a.aprender and escolha.oponente not in NIVEIS:
+        raise SystemExit("--aprender só vale contra a IA (bots escritos à mão não aprendem)")
     rodar(escolha, com_menu=not argv)
 
 

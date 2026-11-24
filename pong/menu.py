@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pygame
 
-from pong.agente import NIVEIS, NOME_NIVEL, caminho_nivel
+from pong.agente import NIVEIS, NOME_NIVEL, caminho_jogando, caminho_nivel
 from pong.arquivos import ler_csv
 from pong.bots import BotPreditor, BotSegue
 from pong.estilo import COR, DESTAQUE, FUNDO, LINHA, TEXTO, TEXTO_FRACO
@@ -23,6 +23,7 @@ OPONENTES = {**{n: f"IA · {NOME_NIVEL[n]}" for n in NIVEIS}, **{b: f"bot {NOME_
 MODOS = {"jogar": "jogar", "assistir": "assistir"}
 CONTROLES = {"teclado": "teclado", "mouse": "mouse", "mao": "mão (webcam)"}
 PONTOS = (3, 5, 11, 21)
+SIM_NAO = {False: "não", True: "sim"}
 
 DESCRICAO = {
     "jogar": "você na raquete azul, contra o adversário escolhido",
@@ -42,6 +43,7 @@ class Escolha:
     oponente: str = "dificil"  # um nível da IA ou o nome de um bot
     controle: str = "teclado"
     pontos: int = 11
+    aprender: bool = False  # a IA continua aprendendo durante a partida
 
 
 @dataclass
@@ -60,6 +62,8 @@ def linhas_do_menu(escolha: Escolha) -> list[Linha]:
     if escolha.modo == "jogar":
         linhas.append(Linha("controle", "Controle", CONTROLES))
     linhas.append(Linha("pontos", "Pontos para vencer", {p: str(p) for p in PONTOS}))
+    if escolha.oponente in NIVEIS:  # bots escritos à mão não aprendem
+        linhas.append(Linha("aprender", "Treinar jogando", SIM_NAO))
     return linhas
 
 
@@ -90,6 +94,13 @@ def descrever(escolha: Escolha, chave: str | None, avaliacao: dict, pasta_modelo
         return DESCRICAO[escolha.oponente]
     if chave == "pontos":
         return f"a partida acaba quando alguém fizer {escolha.pontos} pontos"
+    if chave == "aprender":
+        if not escolha.aprender:
+            return "a IA joga só com o que já sabe"
+        jogando = caminho_jogando(escolha.oponente, pasta_modelos)
+        if jogando.exists():
+            return "a IA continua de onde parou e aprende a cada ponto (salvo em modelos/jogando)"
+        return "a IA parte deste nível e aprende a cada ponto (o nível original não muda)"
     if chave == "controle" and escolha.controle == "mao" and falta_instalar():
         return falta_instalar()
     return DESCRICAO[getattr(escolha, chave)]

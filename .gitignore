@@ -11,3 +11,6 @@ modelos/hand_landmarker.task
 # placar das partidas jogadas nesta máquina (gerado pelo modo visual)
 resultados/partida.json
 resultados/partidas.csv
+
+# IA que continua aprendendo nas partidas ("Treinar jogando"), própria de cada máquina
+modelos/jogando/

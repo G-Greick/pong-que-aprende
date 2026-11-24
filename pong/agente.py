@@ -31,6 +31,11 @@ def caminho_nivel(nivel: str, pasta: Path = PASTA_MODELOS) -> Path:
     return pasta / f"ia_{NIVEIS[nivel]}.npz"
 
 
+def caminho_jogando(nivel: str, pasta: Path = PASTA_MODELOS) -> Path:
+    """Onde fica a IA que continua aprendendo nas partidas (os níveis originais não mudam)."""
+    return pasta / "jogando" / f"ia_{nivel}.npz"
+
+
 RECOMPENSA_REBATER = 1.0
 RECOMPENSA_SOFRER = -1.0
 RECOMPENSA_MARCAR = 1.0
@@ -134,6 +139,62 @@ class AgenteQ:
         agente = cls(**json.loads(str(dados["config"])), seed=seed)
         if dados["q"].shape != agente.q.shape:
             raise ValueError(f"{caminho}: tabela {dados['q'].shape}, esperado {agente.q.shape}")
-        agente.q = dados["q"]
+        agente.q = dados["q"].copy()  # cópia gravável: a IA pode continuar aprendendo
         agente.meta = json.loads(str(dados["meta"]))
         return agente
+
+
+class AgenteAprendendo:
+    """A IA joga e aprende ao mesmo tempo, durante a partida no modo visual.
+
+    É o mesmo Q-learning do treino rápido (pong/treino.py), só que no ritmo da
+    tela: a cada decisão ela atualiza a tabela com a recompensa que recebeu desde
+    a decisão anterior. Depois de cada ponto, a tabela é salva em `caminho`.
+    """
+
+    def __init__(self, agente: AgenteQ, caminho: str | Path, epsilon: float = 0.05):
+        self.agente = agente
+        self.caminho = Path(caminho)
+        self.epsilon = epsilon  # mesma exploração do fim do treino
+        self.meta = agente.meta
+        self.meta.setdefault("pontos_jogando", 0)
+        self.lado: str | None = None
+        self._estado: int | None = None
+        self._acao = PARADO
+        self._r = 0.0
+        self._restantes = 0
+
+    @property
+    def pontos_jogando(self) -> int:
+        return self.meta["pontos_jogando"]
+
+    @property
+    def tamanho_bytes(self) -> int:
+        return self.agente.tamanho_bytes
+
+    def agir(self, jogo: Pong, lado: str) -> int:
+        self.lado = lado
+        if self._restantes == 0:
+            estado = self.agente.disc(jogo, lado)
+            if self._estado is not None:  # aprende com a decisão anterior
+                self.agente.aprender(self._estado, self._acao, self._r, estado, terminal=False)
+            self._acao = self.agente.escolher(estado, self.epsilon)
+            self._estado, self._r = estado, 0.0
+            self._restantes = self.agente.repetir
+        self._restantes -= 1
+        return self._acao
+
+    def observar(self, evento: Evento) -> None:
+        """Chamado depois de cada passo do jogo, com o que aconteceu nele."""
+        if self._estado is None or self.lado is None:
+            return
+        self._r += recompensa(evento, self.lado)
+        if evento.ponto:  # fim do ponto: o próximo saque começa uma decisão nova
+            self.agente.aprender(self._estado, self._acao, self._r, 0, terminal=True)
+            self._estado, self._r, self._restantes = None, 0.0, 0
+            self.meta["pontos_jogando"] += 1
+            self.salvar()
+
+    def salvar(self) -> None:
+        self.agente.meta = self.meta
+        self.agente.salvar(self.caminho)

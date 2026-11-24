@@ -85,3 +85,16 @@ def test_salvar_e_carregar(tmp_path):
 def test_tamanho_do_cerebro():
     agente = AgenteQ()
     assert agente.tamanho_bytes == agente.disc.n_estados * 3 * 4  # float32
+
+
+def test_aprendendo_atualiza_a_tabela_com_a_recompensa_do_ponto(tmp_path):
+    from pong.agente import AgenteAprendendo
+
+    ia = AgenteAprendendo(AgenteQ(seed=0), tmp_path / "ia.npz", epsilon=0.0)
+    jogo = Pong(seed=0)
+    ia.agir(jogo, DIR)
+    estado, acao = ia._estado, ia._acao
+    ia.observar(Evento(ponto=ESQ))  # sofreu ponto: -1 na última decisão
+    assert ia.agente.q[estado, acao] == pytest.approx(-0.1)  # alpha 0,1 * (-1 - 0)
+    assert ia.pontos_jogando == 1
+    assert (tmp_path / "ia.npz").exists()

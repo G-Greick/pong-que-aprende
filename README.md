@@ -15,7 +15,7 @@ python -m pong.jogar
 
 Testado do zero (clone + venv novo) no Windows 11 com Python 3.10 e 3.13. A IA já vem treinada em `modelos/`. O jogo abre num menu para escolher o **modo** (jogar ou
 assistir), o **adversário** (IA sem treino, fácil, médio, difícil ou um dos bots), o **controle**
-(teclado ou mouse) e os **pontos** da partida. Você é a raquete azul (esquerda): **W/S** ou **setas**.
+(teclado ou mouse), os **pontos** da partida e, contra a IA, se ela deve **treinar jogando**. Você é a raquete azul (esquerda): **W/S** ou **setas**.
 P pausa, R recomeça, F11 tela cheia, ESC volta ao menu.
 
 **Controle pela mão (extra opcional):** a raquete segue a altura da sua mão na webcam.
@@ -29,6 +29,14 @@ Na primeira vez o jogo baixa o modelo de detecção de mão (7,8 MB) para `model
 precisa de internet. Mão aberta de frente para a câmera; a faixa do meio da imagem (marcada
 na prévia) cobre a quadra toda. A bola só sai quando a mão aparece.
 
+**Treinar jogando:** com essa opção ligada, a IA continua aprendendo durante a partida, com o
+mesmo Q-learning do treino rápido: a cada decisão ela atualiza a tabela com a recompensa que
+recebeu (+1 ao rebater, +1 ao marcar, −1 ao sofrer). O que ela aprende é salvo a cada ponto em
+`modelos/jogando/` e a próxima partida continua de onde parou; os níveis originais não mudam.
+Embaixo do nome dela aparece quantos pontos ela já jogou aprendendo. Para recomeçar do zero,
+apague `modelos/jogando/`. A mudança é lenta: o nível fácil precisou de 2.000 pontos de treino,
+e uma partida tem de 11 a 21.
+
 Para pular o menu:
 
 ```powershell
@@ -37,6 +45,7 @@ python -m pong.jogar --oponente segue   # contra um bot: segue, preditor, aleato
 python -m pong.jogar --controle mouse   # raquete vai atrás do mouse, na mesma velocidade da IA
 python -m pong.jogar --controle mao     # raquete segue a mão na webcam
 python -m pong.jogar --assistir         # bot "segue" contra a IA, sem humano
+python -m pong.jogar --aprender         # a IA continua aprendendo enquanto joga
 ```
 
 ## Treino e evidências
@@ -85,6 +94,7 @@ pong/
   chat.py          assistente que responde ao produtor (também roda no terminal)
   telegram_bot.py  liga o assistente ao Telegram
 modelos/           a IA salva em 4 momentos do treino = os níveis de dificuldade
+  jogando/         a IA que continua aprendendo nas partidas (criada pelo jogo, fora do git)
 resultados/        evolução do treino, avaliação, gráficos e relatorio.md
 tests/             testes de cada parte
 ```
@@ -97,6 +107,7 @@ tests/             testes de cada parte
 - [x] Gráfico de evolução e avaliação em milhares de pontos
 - [x] Níveis de dificuldade a partir de checkpoints do treino
 - [x] Modo visual com pygame (teclado e mouse) e menu inicial
+- [x] IA que continua aprendendo durante a partida (opção "Treinar jogando")
 - [x] Chat do produtor pelo Telegram (e pelo terminal)
 - [x] [`decisoes.md`](decisoes.md) e [`relato-ia.md`](relato-ia.md)
 - [x] Extra: controle da raquete pela mão (webcam)

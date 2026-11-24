@@ -97,3 +97,34 @@ def test_descricao_do_nivel_usa_a_avaliacao(tmp_path):
     aval = {"facil": {"pct_pontos": "13.0"}}
     texto = descrever(Escolha(oponente="facil"), "oponente", aval, tmp_path)
     assert texto == "IA com 2.000 pontos de treino · ganha 13% dos pontos contra o bot segue"
+
+
+# --- treinar jogando ---------------------------------------------------------------
+
+
+def test_treinar_jogando_muda_a_tabela_e_salva_sem_mexer_no_nivel(tela, tmp_path, monkeypatch):
+    from pong.agente import AgenteQ, caminho_jogando, caminho_nivel
+
+    original = caminho_nivel("sem-treino", jogar.PASTA_MODELOS)
+    (tmp_path / "ia_0.npz").write_bytes(original.read_bytes())
+    monkeypatch.setattr(jogar, "PASTA_MODELOS", tmp_path)
+
+    # o bot segue contra a IA sem treino, que aprende durante 3 pontos
+    escolha = Escolha(modo="assistir", oponente="sem-treino", pontos=3, aprender=True)
+    jogar.jogar_partida(tela, escolha, com_menu=False, max_quadros=20000)
+
+    salva = AgenteQ.carregar(caminho_jogando("sem-treino", tmp_path))
+    assert salva.meta["pontos_jogando"] == 3
+    assert (salva.q != 0).any()  # aprendeu alguma coisa
+    assert not AgenteQ.carregar(tmp_path / "ia_0.npz").q.any()  # o nível original segue zerado
+
+    # a próxima partida continua de onde parou
+    ia, nome, detalhe = jogar.criar_oponente("sem-treino", aprender=True)
+    assert ia.pontos_jogando == 3
+    assert nome == "IA · sem treino · aprendendo"
+    assert "+ 3 jogando" in detalhe
+
+
+def test_treinar_jogando_so_aparece_contra_a_ia():
+    assert "aprender" in [l.chave for l in linhas_do_menu(Escolha(oponente="facil"))]
+    assert "aprender" not in [l.chave for l in linhas_do_menu(Escolha(oponente="segue"))]
